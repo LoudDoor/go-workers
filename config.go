@@ -54,7 +54,7 @@ func Configure(options map[string]string) {
 		},
 	}
 
-	if _, err := Config.Pool.Ping.Result(); err != nil {
+	if _, err := Config.Pool.Ping().Result(); err != nil {
 		Logger.Printf("Couldn't connect to redis: %s", err.Error())
 	}
 
