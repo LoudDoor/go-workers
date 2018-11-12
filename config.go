@@ -53,6 +53,11 @@ func Configure(options map[string]string) {
 			return NewFetch(queue, make(chan *Msg), make(chan bool))
 		},
 	}
+
+	if _, err := Config.Pool.Ping.Result(); err != nil {
+		Logger.Printf("Couldn't connect to redis: %s", err.Error())
+	}
+
 }
 
 func createRedisPool(options map[string]string) *redis.Client {
