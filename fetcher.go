@@ -86,10 +86,8 @@ func (f *fetch) tryFetchMessage() {
 
 	if err != nil {
 		// If redis returns null, the queue is empty. Just ignore the error.
-		if err.Error() != "redigo: nil returned" {
-			Logger.Println("ERR: ", err)
-			time.Sleep(1 * time.Second)
-		}
+		Logger.Printf("ERR (BRPopLPush): queue: %s, in-progress: %s, error: ", f.queue, f.inprogressQueue(), err.Error())
+		time.Sleep(1 * time.Second)
 	} else {
 		f.sendMessage(message)
 	}
@@ -149,7 +147,7 @@ func (f *fetch) inprogressMessages() []string {
 
 	// messages, err := redis.Strings(conn.Do("lrange", f.inprogressQueue(), 0, -1))
 	if err != nil {
-		Logger.Println("ERR: ", err)
+		Logger.Printf("ERR (LRange): queue: %s, error: ", f.inprogressQueue(), err.Error())
 	}
 
 	return messages

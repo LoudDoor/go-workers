@@ -36,6 +36,7 @@ func (s *scheduled) quit() {
 
 func (s *scheduled) poll() {
 	// conn := Config.Pool.Get()
+	// defer conn.Close()
 	conn := Config.Pool
 
 	now := nowToSecondsWithNanoPrecision()
@@ -67,8 +68,6 @@ func (s *scheduled) poll() {
 			}
 		}
 	}
-
-	conn.Close()
 }
 
 func newScheduled(keys ...string) *scheduled {
