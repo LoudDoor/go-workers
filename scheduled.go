@@ -36,7 +36,7 @@ func (s *scheduled) quit() {
 
 func (s *scheduled) poll() {
 	// conn := Config.Pool.Get()
-	conn := *Config.Pool
+	conn := Config.Pool
 
 	now := nowToSecondsWithNanoPrecision()
 

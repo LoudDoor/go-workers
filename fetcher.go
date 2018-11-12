@@ -78,7 +78,7 @@ func (f *fetch) Fetch() {
 }
 
 func (f *fetch) tryFetchMessage() {
-	conn := *Config.Pool // Config.Pool.Get()
+	conn := Config.Pool // Config.Pool.Get()
 	// defer conn.Close()
 
 	message, err := conn.BRPopLPush(f.queue, f.inprogressQueue(), 1*time.Second).Result()
@@ -107,7 +107,7 @@ func (f *fetch) sendMessage(message string) {
 }
 
 func (f *fetch) Acknowledge(message *Msg) {
-	conn := *Config.Pool
+	conn := Config.Pool
 	//  Config.Pool.Get()
 	// defer conn.Close()
 	// conn.Do("lrem", f.inprogressQueue(), -1, message.OriginalJson())
@@ -143,7 +143,7 @@ func (f *fetch) Closed() bool {
 func (f *fetch) inprogressMessages() []string {
 	// conn := Config.Pool.Get()
 	// defer conn.Close()
-	conn := *Config.Pool
+	conn := Config.Pool
 
 	messages, err := conn.LRange(f.inprogressQueue(), 0, -1).Result()
 

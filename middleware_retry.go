@@ -21,7 +21,7 @@ func (r *MiddlewareRetry) Call(queue string, message *Msg, next func() bool) (ac
 		if e := recover(); e != nil {
 			// conn := Config.Pool.Get()
 			// defer conn.Close()
-			conn := *Config.Pool
+			conn := Config.Pool
 
 			if retry(message) {
 				message.Set("queue", queue)

@@ -72,7 +72,7 @@ func EnqueueWithOptions(queue, class string, args interface{}, opts EnqueueOptio
 		return data.Jid, err
 	}
 
-	conn := *Config.Pool
+	conn := Config.Pool
 
 	_, err = conn.SAdd(Config.Namespace+"queues", queue).Result()
 	if err != nil {
@@ -90,7 +90,7 @@ func EnqueueWithOptions(queue, class string, args interface{}, opts EnqueueOptio
 }
 
 func enqueueAt(at float64, bytes []byte) error {
-	conn := *Config.Pool //Config.Pool.Get()
+	conn := Config.Pool //Config.Pool.Get()
 	// defer conn.Close()
 
 	_, err := conn.ZAdd(Config.Namespace+SCHEDULED_JOBS_KEY, redis.Z{
