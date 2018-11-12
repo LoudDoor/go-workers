@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/go-redis/redis"
 )
 
 type stats struct {
@@ -47,48 +49,45 @@ func Stats(w http.ResponseWriter, req *http.Request) {
 		0,
 	}
 
-	conn := Config.Pool.Get()
-	defer conn.Close()
+	// conn := Config.Pool.Get()
+	// defer conn.Close()
+	conn := Config.Pool
+	pipe := conn.Pipeline()
 
-	conn.Send("multi")
-	conn.Send("get", Config.Namespace+"stat:processed")
-	conn.Send("get", Config.Namespace+"stat:failed")
-	conn.Send("zcard", Config.Namespace+RETRY_KEY)
+	processed := pipe.Get(Config.Namespace + "stat:processed")
+	failed := pipe.Get(Config.Namespace + "stat:failed")
+	zcard := pipe.ZCard(Config.Namespace + RETRY_KEY)
 
+	results := make([]*redis.IntCmd, 0)
 	for key, _ := range enqueued {
-		conn.Send("llen", fmt.Sprintf("%squeue:%s", Config.Namespace, key))
+		results = append(results, conn.LLen(fmt.Sprintf("%squeue:%s", Config.Namespace, key)))
 	}
 
-	r, err := conn.Do("exec")
+	_, err := pipe.Exec()
 
 	if err != nil {
 		Logger.Println("couldn't retrieve stats:", err)
 	}
 
-	results := r.([]interface{})
-	if len(results) == (3 + len(enqueued)) {
-		for index, result := range results {
-			if index == 0 && result != nil {
-				stats.Processed, _ = strconv.Atoi(string(result.([]byte)))
-				continue
-			}
-			if index == 1 && result != nil {
-				stats.Failed, _ = strconv.Atoi(string(result.([]byte)))
-				continue
-			}
+	procCount, procError := processed.Result()
+	if procError != nil {
+		stats.Processed, _ = strconv.Atoi(procCount)
+	}
 
-			if index == 2 && result != nil {
-				stats.Retries = result.(int64)
-				continue
-			}
+	failCount, failError := failed.Result()
+	if failError != nil {
+		stats.Failed, _ = strconv.Atoi(failCount)
+	}
 
-			queueIndex := 0
-			for key, _ := range enqueued {
-				if queueIndex == (index - 3) {
-					enqueued[key] = fmt.Sprintf("%d", result.(int64))
-				}
-				queueIndex++
-			}
+	zCount, zError := zcard.Result()
+	if zError != nil {
+		stats.Retries = zCount
+	}
+
+	if len(results) == len(enqueued) {
+		for index, cmd := range results {
+			key := strconv.Itoa(index)
+			enqueued[key] = fmt.Sprintf("%d", cmd.Val())
 		}
 	}
 

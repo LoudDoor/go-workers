@@ -3,8 +3,6 @@ package workers
 import (
 	"fmt"
 	"time"
-
-	"github.com/garyburd/redigo/redis"
 )
 
 type Fetcher interface {
@@ -80,10 +78,11 @@ func (f *fetch) Fetch() {
 }
 
 func (f *fetch) tryFetchMessage() {
-	conn := Config.Pool.Get()
-	defer conn.Close()
+	conn := *Config.Pool // Config.Pool.Get()
+	// defer conn.Close()
 
-	message, err := redis.String(conn.Do("brpoplpush", f.queue, f.inprogressQueue(), 1))
+	message, err := conn.BRPopLPush(f.queue, f.inprogressQueue(), 1*time.Second).Result()
+	// redis.String(conn.Do("brpoplpush", f.queue, f.inprogressQueue(), 1))
 
 	if err != nil {
 		// If redis returns null, the queue is empty. Just ignore the error.
@@ -108,9 +107,11 @@ func (f *fetch) sendMessage(message string) {
 }
 
 func (f *fetch) Acknowledge(message *Msg) {
-	conn := Config.Pool.Get()
-	defer conn.Close()
-	conn.Do("lrem", f.inprogressQueue(), -1, message.OriginalJson())
+	conn := *Config.Pool
+	//  Config.Pool.Get()
+	// defer conn.Close()
+	// conn.Do("lrem", f.inprogressQueue(), -1, message.OriginalJson())
+	conn.LRem(f.inprogressQueue(), -1, message.OriginalJson()).Err()
 }
 
 func (f *fetch) Messages() chan *Msg {
@@ -140,10 +141,13 @@ func (f *fetch) Closed() bool {
 }
 
 func (f *fetch) inprogressMessages() []string {
-	conn := Config.Pool.Get()
-	defer conn.Close()
+	// conn := Config.Pool.Get()
+	// defer conn.Close()
+	conn := *Config.Pool
 
-	messages, err := redis.Strings(conn.Do("lrange", f.inprogressQueue(), 0, -1))
+	messages, err := conn.LRange(f.inprogressQueue(), 0, -1).Result()
+
+	// messages, err := redis.Strings(conn.Do("lrange", f.inprogressQueue(), 0, -1))
 	if err != nil {
 		Logger.Println("ERR: ", err)
 	}

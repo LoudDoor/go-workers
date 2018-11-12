@@ -1,80 +1,87 @@
 package workers
 
 import (
+	"crypto/tls"
 	"strconv"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/go-redis/redis"
 )
 
 type config struct {
 	processId    string
 	Namespace    string
 	PollInterval int
-	Pool         *redis.Pool
+	Pool         *redis.Client
 	Fetch        func(queue string) Fetcher
 }
 
 var Config *config
 
 func Configure(options map[string]string) {
-	var poolSize int
 	var namespace string
 	var pollInterval int
 
 	if options["server"] == "" {
 		panic("Configure requires a 'server' option, which identifies a Redis instance")
 	}
+
 	if options["process"] == "" {
 		panic("Configure requires a 'process' option, which uniquely identifies this instance")
 	}
+
 	if options["pool"] == "" {
 		options["pool"] = "1"
 	}
+
 	if options["namespace"] != "" {
 		namespace = options["namespace"] + ":"
 	}
+
 	if seconds, err := strconv.Atoi(options["poll_interval"]); err == nil {
 		pollInterval = seconds
 	} else {
 		pollInterval = 15
 	}
 
-	poolSize, _ = strconv.Atoi(options["pool"])
-
 	Config = &config{
-		options["process"],
-		namespace,
-		pollInterval,
-		&redis.Pool{
-			MaxIdle:     poolSize,
-			IdleTimeout: 240 * time.Second,
-			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", options["server"])
-				if err != nil {
-					return nil, err
-				}
-				if options["password"] != "" {
-					if _, err := c.Do("AUTH", options["password"]); err != nil {
-						c.Close()
-						return nil, err
-					}
-				}
-				if options["database"] != "" {
-					if _, err := c.Do("SELECT", options["database"]); err != nil {
-						c.Close()
-						return nil, err
-					}
-				}
-				return c, err
-			},
-			TestOnBorrow: func(c redis.Conn, t time.Time) error {
-				_, err := c.Do("PING")
-				return err
-			},
-		},
-		func(queue string) Fetcher {
+		processId:    options["process"],
+		Namespace:    namespace,
+		PollInterval: pollInterval,
+		Pool:         createRedisPool(options),
+		Fetch: func(queue string) Fetcher {
 			return NewFetch(queue, make(chan *Msg), make(chan bool))
 		},
 	}
+}
+
+func createRedisPool(options map[string]string) *redis.Client {
+	poolSize, _ := strconv.Atoi(options["pool"])
+	dbID, _ := strconv.Atoi(options["database"])
+
+	redisClientOpts := &redis.Options{
+		Addr:         options["server"],
+		DB:           dbID,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		MaxRetries:   3,
+
+		PoolSize:           poolSize,
+		MinIdleConns:       3,
+		MaxConnAge:         60 * time.Second,
+		IdleTimeout:        240 * time.Second,
+		IdleCheckFrequency: 500 * time.Millisecond,
+	}
+
+	if "" != options["password"] {
+		redisClientOpts.Password = options["password"]
+	}
+
+	if useTLS, ok := options["useTLS"]; ok {
+		if "yes" == useTLS {
+			redisClientOpts.TLSConfig = &tls.Config{}
+		}
+	}
+
+	return redis.NewClient(redisClientOpts)
 }
