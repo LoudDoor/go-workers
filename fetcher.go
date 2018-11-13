@@ -86,9 +86,12 @@ func (f *fetch) tryFetchMessage() {
 	message, err := conn.BRPopLPush(f.queue, f.inprogressQueue(), 1*time.Second).Result()
 	// redis.String(conn.Do("brpoplpush", f.queue, f.inprogressQueue(), 1))
 
-	if err != nil && err != redis.Nil {
+	if err != nil {
 		// If redis returns null, the queue is empty. Just ignore the error.
-		Logger.Printf("ERR (BRPopLPush): queue: %s, in-progress: %s, error: %s", f.queue, f.inprogressQueue(), err.Error())
+		if err != redis.Nil {
+			Logger.Printf("ERR (BRPopLPush): queue: %s, in-progress: %s, error: %s", f.queue, f.inprogressQueue(), err.Error())
+		}
+
 		time.Sleep(1 * time.Second)
 	} else {
 		f.sendMessage(message)
