@@ -93,7 +93,7 @@ func enqueueAt(at float64, bytes []byte) error {
 	conn := Config.Pool //Config.Pool.Get()
 	// defer conn.Close()
 
-	_, err := conn.ZAdd(Config.Namespace+SCHEDULED_JOBS_KEY, redis.Z{
+	_, err := conn.ZAdd(Config.Namespace+SCHEDULED_JOBS_KEY, &redis.Z{
 		Score:  at,
 		Member: bytes,
 	}).Result()

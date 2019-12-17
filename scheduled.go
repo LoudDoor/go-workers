@@ -44,7 +44,7 @@ func (s *scheduled) poll() {
 	for _, key := range s.keys {
 		key = Config.Namespace + key
 		for {
-			messages, _ := conn.ZRangeByScore(key, redis.ZRangeBy{
+			messages, _ := conn.ZRangeByScore(key, &redis.ZRangeBy{
 				Min:    "-inf",
 				Max:    fmt.Sprintf("%.6f", now),
 				Offset: 0,

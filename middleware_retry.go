@@ -34,7 +34,7 @@ func (r *MiddlewareRetry) Call(queue string, message *Msg, next func() bool) (ac
 					) * time.Second,
 				)
 
-				_, err := conn.ZAdd(Config.Namespace+RETRY_KEY, redis.Z{
+				_, err := conn.ZAdd(Config.Namespace+RETRY_KEY, &redis.Z{
 					Score:  nowToSecondsWithNanoPrecision() + waitDuration,
 					Member: message.ToJson(),
 				}).Result()
